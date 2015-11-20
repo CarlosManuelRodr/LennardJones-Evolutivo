@@ -17,16 +17,18 @@ import org.opensourcephysics.controls.XML;
 import org.opensourcephysics.display.GUIUtils;
 import org.opensourcephysics.frames.DisplayFrame;
 import org.opensourcephysics.frames.PlotFrame;
-
+import org.opensourcephysics.frames.HistogramFrame;
 
 /**
 * Comparador de libertad de los sistemas que se usa al ordenar la lista de sistemas 
-* en funci髇 de su grado de libertad.
+* en funci贸n de su grado de libertad.
 */
 class ValorComparator implements Comparator<Object> {
+
 	public int compare(Object o1, Object o2) {
 		Individuo a = (Individuo) o1;
 		Individuo b = (Individuo) o2;
+
 		return Double.compare(a.getFreedom(), b.getFreedom());
 	}
 
@@ -36,7 +38,9 @@ class ValorComparator implements Comparator<Object> {
 }
 
 /**
- * Contiene sistema LJ junto con su valor de libertad y cambio de energ韆.
+ * Contiene sistema LJ junto con su valor de libertad y cambio de
+ * energ铆a del sistema con evoluci贸n guiada y el sistema sin evoluci贸n
+ * guiada (mdI).
  */
 class Individuo {
 	private LJParticles lj;
@@ -84,7 +88,7 @@ class Individuo {
 }
 
 /**
-* Crea un conjunto de inviduos en base a los par醡etros de un sistema LJParticles inicial.
+* Crea un conjunto de inviduos en base a los par谩metros de un sistema LJParticles inicial.
 */
 class Poblacion {
 	private java.util.List<Individuo> individuos;
@@ -128,13 +132,14 @@ class Poblacion {
 	}
 
 	/**
-	 * Realiza la evoluci髇 temporal de la poblaci髇 y del sistema mdI guardando
-	 * los cambio de energ韆.
+	 * Realiza la evoluci贸n temporal de la poblaci贸n y del sistema mdI guardando
+	 * los cambio de energ铆a.
 	 * 
-	 * @param steps N鷐ero de pasos.
+	 * @param steps N煤mero de pasos.
 	 * @param mdI Sistema LJ.
 	 */
-	public void evaluar(int steps, LJParticles mdI) {	
+	public void evaluar(int steps, LJParticles mdI) {
+		
 		double Ei = mdI.getEnergy();
 		
 		for(int k = 0; k <= steps; k++)
@@ -182,11 +187,11 @@ class Poblacion {
 }
 
 /**
- * LJParticlesApp simula un sistema bidimensional de part韈ulas que interact鷄n
- * entre ellas a trav閟 de un potencial de Lennard-Jones y se utiliza un algoritmo
+ * LJParticlesApp simula un sistema bidimensional de part铆culas que interact煤an
+ * entre ellas a trav茅s de un potencial de Lennard-Jones y se utiliza un algoritmo
  * evolutivo para seleccionar las mutaciones que presentan menor grado de libertad.
  * 
- * @author Jan Tobochnik, Wolfgang Christian, Harvey Gould, Samuel Galv醤
+ * @author Jan Tobochnik, Wolfgang Christian, Harvey Gould, Samuel Galv谩n
  * @version 1.0 revised 03/28/05, 3/29/05
  */
 public class LJParticlesApp extends AbstractSimulation {
@@ -194,26 +199,32 @@ public class LJParticlesApp extends AbstractSimulation {
 	LJParticles mdII = new LJParticles();
 	PlotFrame temperatureDataI = new PlotFrame("Tiempo", "Temperatura", "Temperatura promedio en sistema I");
 	PlotFrame temperatureDataII = new PlotFrame("Tiempo", "Temperatura", "Temperatura promedio en sistema II");
-	PlotFrame energyDataI = new PlotFrame("Tiempo", "Energ韆", "Energ韆 promedio en sistema I");
-	PlotFrame energyDataII = new PlotFrame("Tiempo", "Energ韆", "Energ韆 promedio en sistema II");
+	PlotFrame energyDataI = new PlotFrame("Tiempo", "Energ铆a", "Energ铆a promedio en sistema I");
+	PlotFrame energyDataII = new PlotFrame("Tiempo", "Energ铆a", "Energ铆a promedio en sistema II");
 	PlotFrame freedomDataI = new PlotFrame("Tiempo", "Libertad", "Grado de libertad en sistema I");
 	PlotFrame freedomDataII = new PlotFrame("Tiempo", "Libertad", "Grado de libertad en sistema II");
 	DisplayFrame displayI = new DisplayFrame("x", "y", "Sistema Lennard-Jones I");
 	DisplayFrame displayII = new DisplayFrame("x", "y", "Sistema Lennard-Jones II");
 	PlotFrame freedomTemperatureData = new PlotFrame("Libertad", "Calor disipado",
-			"Relaci髇 entre calor disipado vs libertad");
+			"Relaci贸n entre calor disipado vs libertad");
+	HistogramFrame deltaEDist = new HistogramFrame(
+			"Cambio de energ铆a", "Frecuencia",
+			"Distribuci贸n de cambios de energ铆a");
+	HistogramFrame deltaFreedDist = new HistogramFrame(
+			"Cambio de libertad", "Frecuencia",
+			"Distribuci贸n de cambios de libertad");
 
 	Poblacion P;
 	private long N;
 	private long g;
-	private int steps;
+	private int steps; 
 	
 	/**
-	* Crea una lista con mutaciones de la poblaci髇. El par醡etro que cambia con cada mutaci髇 
-	* es la distribuci髇 de velocidades.
+	* Crea una lista con mutaciones de la poblaci贸n. El par谩metro que cambia con cada mutaci贸n 
+	* es la distribuci贸n de velocidades.
 	* @return Lista con todas las mutaciones.
 	*/
-	private java.util.List<Individuo> mutacion() {
+	private java.util.List<Individuo> mutacion(){
 		java.util.List<Individuo> mutaciones = new ArrayList<Individuo>();
 		for (Individuo i : P.getIndividuos()) {
 			LJParticles md = new LJParticles();
@@ -239,7 +250,7 @@ public class LJParticlesApp extends AbstractSimulation {
 			md.setVirialAccumulator(i.getLj().getVirialAccumulator());
 			md.getOdeSolver().setStepSize(i.getLj().getDt());
 			
-			md.setVelocitiesEvolution(); // Cambia la velocidad de las part韈ulas con 10% de probabilidad.
+			md.setVelocitiesEvolution();
 			
 			Individuo I = new Individuo(md);			
 			I.setFreedom(i.getFreedom());
@@ -261,22 +272,18 @@ public class LJParticlesApp extends AbstractSimulation {
 		P.evaluar(steps, mdI);
 		
 		do {
-			// Realiza mutaciones sobre la poblaci髇 P, las a馻de a la lista de poblaci髇 y evoluciona.
 			Poblacion Q = new Poblacion();
 			Q.setPoblacion(mutacion());
-			
 			P.nuevoIndividuo(Q);
 			P.evaluar(steps, mdI);
 			
 			java.util.List<Individuo> resultados = new ArrayList<Individuo>();
 			java.util.List<Individuo> individuos = new ArrayList<Individuo>(P.getIndividuos());
 
-			// Ordena la lista de individuos seg鷑 su valor de libertad.
 			ValorComparator vc = new ValorComparator();
 			Collections.sort(individuos, vc);
-			
-			// Descarta los peores resultados.
 			long j = 0;
+
 			for (Individuo i : individuos) {
 				if (j < individuos.size() / 2) {
 					resultados.add(i);
@@ -286,6 +293,10 @@ public class LJParticlesApp extends AbstractSimulation {
 			}
 
 			P.setPoblacion(resultados);
+			
+			// Seleccionamos el individuo con menos complejidad y graficamos su consumo energ茅tico.
+			Individuo fit = P.getIndividuos().get(0);
+			freedomTemperatureData.append(0, fit.getFreedom(), fit.getValueMdI() -  fit.getValue());
 			t++;
 		} while (t < g);
 	}
@@ -294,21 +305,23 @@ public class LJParticlesApp extends AbstractSimulation {
 	 * Ejecuta el algoritmo evolutivo.
 	 **/
 	public void initialize() {
-		// Copia los par醡etros de la interfaz gr醘ica.
+		// Copia los par谩metros de la interfaz gr谩fica.
 		g = control.getInt("Generaciones");
-		steps = control.getInt("Pasos por generaci髇");
-		N = control.getInt("Tama駉 de la poblaci髇");
-		
+		steps = control.getInt("Pasos por generaci贸n");
+		N = control.getInt("Tama帽o de la poblaci贸n");
+
 		mdI = new LJParticles();
-		mdI.nx = control.getInt("nx"); // N鷐ero de part韈ulas por fila.
-		mdI.ny = control.getInt("ny"); // N鷐ero de part韈ulas por columna.
-		mdI.initialKineticEnergy = control.getDouble("Energ韆 cin閠ica inicial por part韈ula");
+		mdI.nx = control.getInt("nx"); // N煤mero de part铆culas por fila.
+		mdI.ny = control.getInt("ny"); // N煤mero de part铆culas por columna.
+		mdI.initialKineticEnergy = control.getDouble("Energ铆a cin茅tica inicial por part铆cula");
 		mdI.Lx = control.getDouble("Lx");
 		mdI.Ly = control.getDouble("Ly");
-		mdI.initialConfiguration = control.getString("Configuraci髇 inicial");
+		mdI.initialConfiguration = control.getString("Configuraci贸n inicial");
 		mdI.dt = control.getDouble("dt");
+		
+		freedomTemperatureData.setLogScale(true, true);
 
-		// Crea sistema LJ mdI y lo evoluciona un n鷐ero 'step' de pasos.
+		// Crea sistema LJ mdI y lo evoluciona un n煤mero 'step' de pasos.
 		mdI.initialize();
 
 		for (int k = 0; k < steps; k++) {
@@ -326,30 +339,54 @@ public class LJParticlesApp extends AbstractSimulation {
 			resultados.add(i);
 		}
 
-		for (Individuo i : resultados) {
-			freedomTemperatureData.append(0, i.getFreedom(), i.getValueMdI() - i.getValue());
-		}
-		
-		// Crea el sistema mdII a partir de la mutaci髇 con menor libertad de mdI.
+		// Crea el sistema mdII a partir de la mutaci贸n con menor libertad de mdI.
 		mdII = new LJParticles();
 		mdII = resultados.get(0).getLj();
-
 		displayII.addDrawable(mdII);
 		displayII.setPreferredMinMax(0, mdII.Lx, 0, mdII.Ly);
+		
+		// El sistema mdIII se usa para calcular los valores de las distribuciones.
+		LJParticles mdIII = new LJParticles();
+		mdIII.nx = control.getInt("nx");
+		mdIII.ny = control.getInt("ny");
+		mdIII.initialKineticEnergy = control.getDouble("Energ铆a cin茅tica inicial por part铆cula");
+		mdIII.Lx = control.getDouble("Lx");
+		mdIII.Ly = control.getDouble("Ly");
+		mdIII.initialConfiguration = control.getString("Configuraci贸n inicial");
+		mdIII.dt = control.getDouble("dt");
+		mdIII.initialize();
+		deltaEDist.setBinWidth(4.0);
+		deltaFreedDist.setBinWidth(4.0);
+		
+		for (int i = 0; i < g; i++)
+		{
+			double Ei = mdIII.getEnergy();
+			double Fi = mdIII.getFreedom();
+			for (int j = 0; j <= steps; j++)
+			{									
+				mdIII.step();	
+				mdIII.setVelocitiesEvolution();
+			}
+			double Ej = mdIII.getEnergy();
+			double Fj = mdIII.getFreedom();
+			
+			deltaEDist.append((-1)*(Ei - Ej));
+			deltaFreedDist.append((-1)*(Fi - Fj));
+		}
 	}
 
 	/**
-	 * Efect鷄 un paso de la simulaci髇 y actualiza las gr醘icas.
+	 * Efect煤a un paso de la simulaci贸n y actualiza las gr谩ficas.
 	 */
 	public void doStep() {
-		// Evoluciona mdI y actualiza gr醘icas.
+		// Evoluciona mdI y actualiza gr谩ficas.
 		mdI.step();
 		mdI.setVelocitiesEvolution();
 		energyDataI.append(0, mdI.t, mdI.getMeanEnergy());
 		temperatureDataI.append(0, mdI.t, mdI.getMeanTemperature());
 		freedomDataI.append(0, mdI.t, mdI.getFreedom());
 		
-		// Evoluciona mdII y actualiza gr醘icas.
+		// Evoluciona mdII y actualiza gr谩ficas.
 		mdII.step();
 		mdII.setVelocitiesEvolution();
 		energyDataII.append(0, mdII.t, mdII.getMeanEnergy());
@@ -358,20 +395,20 @@ public class LJParticlesApp extends AbstractSimulation {
 	}
 
 	/**
-	 * Escribe la informaci髇 del sistema LJ al terminar la simulaci髇.
+	 * Escribe la informaci贸n del sistema LJ al terminar la simulaci贸n.
 	 */
 	public void stop() {
-		control.println("Densidad = " + decimalFormat.format(mdII.rho));
-		control.println("N鷐ero de pasos = " + mdII.steps);
-		control.println("Intervalo temporal de paso = " + decimalFormat.format(mdII.dt));
+		control.println("Density = " + decimalFormat.format(mdII.rho));
+		control.println("Number of time steps = " + mdII.steps);
+		control.println("Time step dt = " + decimalFormat.format(mdII.dt));
 		control.println("<T>= " + decimalFormat.format(mdII.getMeanTemperature()));
 		control.println("<E> = " + decimalFormat.format(mdII.getMeanEnergy()));
-		control.println("Capacidad calor韋ica = " + decimalFormat.format(mdII.getHeatCapacity()));
+		control.println("Heat capacity = " + decimalFormat.format(mdII.getHeatCapacity()));
 		control.println("<PA/NkT> = " + decimalFormat.format(mdII.getMeanPressure()));
 	}
 
 	/**
-	 * Copia los par醡etros del control antes de comenzar la ejecuci髇.
+	 * Copia los par谩metros del control antes de comenzar la ejecuci贸n.
 	 */
 	public void startRunning() {
 		mdII.dt = control.getDouble("dt");
@@ -393,41 +430,41 @@ public class LJParticlesApp extends AbstractSimulation {
 		control.setValue("nx", 4);
 		control.setValue("ny", 4);
 		control.setValue("Generaciones", 1250);
-		control.setValue("Pasos por generaci髇", 100);
-		control.setValue("Tama駉 de la poblaci髇", 250);
+		control.setValue("Pasos por generaci贸n", 100);
+		control.setValue("Tama帽o de la poblaci贸n", 250);
 		control.setAdjustableValue("Lx", 15.0);
 		control.setAdjustableValue("Ly", 10.0);
-		control.setValue("Energ韆 cin閠ica inicial por part韈ula", 1.0);
+		control.setValue("Energ铆a cin茅tica inicial por part铆cula", 1.0);
 		control.setAdjustableValue("dt", 0.01);
-		control.setValue("Configuraci髇 inicial", "rectangular");
+		control.setValue("Configuraci贸n inicial", "rectangular");
 		enableStepsPerDisplay(true);
-		super.setStepsPerDisplay(10); // draw configurations every 10 steps
-		displayII.setSquareAspect(true); // so particles will appear as circular disks
-		displayI.setSquareAspect(true); // so particles will appear as circular disks
+		super.setStepsPerDisplay(10);     // Dibuja la configuraci贸n cada 10 pasos.
+		displayII.setSquareAspect(true);
+		displayI.setSquareAspect(true);
 	}
 
 	/**
-	 * Resetea el modelo de LJ y las gr醘icas.
+	 * Resetea el modelo de LJ y las gr谩ficas.
 	 */
 	public void resetData() {
 		mdII.resetAverages();
 		mdI.resetAverages();
-		GUIUtils.clearDrawingFrameData(false); // clears old data from the plot frames
+		GUIUtils.clearDrawingFrameData(false); // clears old data from the plot
+												// frames
 	}
 
 	/**
-	 * Devuelve un XML.ObjectLoader para guardar y cargar los datos de este programa.
-	 * Los datos de LJParticle se pueden guardar usando el menu.
-	 * 
-	 * @return El ObjectLoader.
+	 * Devuelve el objeto XML.ObjectLoader para cargar y guardar datos.
 	 */
 	public static XML.ObjectLoader getLoader() {
 		return new LJParticlesLoader();
 	}
 
 	/**
-	 * Comienza la ejecuci髇 de la aplicaci髇.
-	 * @param args argumentos de la l韓ea de comandos.
+	 * Comienza la ejecuci贸n del programa.
+	 * 
+	 * @param args
+	 *            Argumentos de la l铆nea de comandos.
 	 */
 	public static void main(String[] args) {
 		SimulationControl control = SimulationControl.createApp(new LJParticlesApp());

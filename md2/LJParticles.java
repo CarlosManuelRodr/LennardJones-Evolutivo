@@ -28,7 +28,8 @@ import org.opensourcephysics.numerics.Verlet;
 public class LJParticles implements Drawable, ODE {
 	public double state[];
 	public double ax[], ay[];
-	public int N, nx, ny; // number of particles, number per row, number per column
+	public int N, nx, ny;  // number of particles, number per row, number per
+						   // column
 	public double Lx, Ly;
 	public double rho = N / (Lx * Ly);
 	public double initialKineticEnergy;
@@ -83,7 +84,8 @@ public class LJParticles implements Drawable, ODE {
 	// end break
 	// start break
 	// setRandomPositions
-	public void setRandomPositions() { // particles placed at random, but not closer than rMinimumSquared
+	public void setRandomPositions() { // particles placed at random, but not
+										// closer than rMinimumSquared
 		double rMinimumSquared = Math.pow(2.0, 1.0 / 3.0);
 		boolean overlap;
 		for (int i = 0; i < N; ++i) {
@@ -94,8 +96,7 @@ public class LJParticles implements Drawable, ODE {
 				int j = 0;
 				while ((j < i) && !overlap) {
 					double dx = pbcSeparation(state[4 * i] - state[4 * j], Lx);
-					double dy = pbcSeparation(state[4 * i + 2]
-							- state[4 * j + 2], Ly);
+					double dy = pbcSeparation(state[4 * i + 2] - state[4 * j + 2], Ly);
 					if (dx * dx + dy * dy < rMinimumSquared) {
 						overlap = true;
 					}
@@ -144,6 +145,7 @@ public class LJParticles implements Drawable, ODE {
 	public void setVelocitiesEvolution() {
 		double vxSum = 0.0;
 		double vySum = 0.0;
+		
 		for (int i = 0; i < N; ++i) { // assign random initial velocities
 			
 			Random r = new Random();
@@ -158,6 +160,7 @@ public class LJParticles implements Drawable, ODE {
 			vxSum += state[4 * i + 1];
 			vySum += state[4 * i + 3];
 		}
+		
 		// zero center of mass momentum
 		double vxcm = vxSum / N; // center of mass momentum (velocity)
 		double vycm = vySum / N;
@@ -165,13 +168,16 @@ public class LJParticles implements Drawable, ODE {
 			state[4 * i + 1] -= vxcm;
 			state[4 * i + 3] -= vycm;
 		}
+		
 		double v2sum = 0; // rescale velocities to obtain desired initial
-					      // kinetic energy
+						  // kinetic energy
 		for (int i = 0; i < N; ++i) {
 			v2sum += state[4 * i + 1] * state[4 * i + 1] + state[4 * i + 3] * state[4 * i + 3];
 		}
+		
 		double kineticEnergyPerParticle = 0.5 * v2sum / N;
 		double rescale = Math.sqrt(initialKineticEnergy / kineticEnergyPerParticle);
+		
 		for (int i = 0; i < N; ++i) {
 			state[4 * i + 1] *= rescale;
 			state[4 * i + 3] *= rescale;
@@ -184,6 +190,7 @@ public class LJParticles implements Drawable, ODE {
 	public void setVelocities() {
 		double vxSum = 0.0;
 		double vySum = 0.0;
+		
 		for (int i = 0; i < N; ++i) { // assign random initial velocities
 			state[4 * i + 1] = Math.random() - 0.5; // vx
 			state[4 * i + 3] = Math.random() - 0.5; // vy
@@ -193,17 +200,21 @@ public class LJParticles implements Drawable, ODE {
 		// zero center of mass momentum
 		double vxcm = vxSum / N; // center of mass momentum (velocity)
 		double vycm = vySum / N;
+		
 		for (int i = 0; i < N; ++i) {
 			state[4 * i + 1] -= vxcm;
 			state[4 * i + 3] -= vycm;
 		}
 		double v2sum = 0; // rescale velocities to obtain desired initial
-						  // kinetic energy
+							// kinetic energy
 		for (int i = 0; i < N; ++i) {
-			v2sum += state[4 * i + 1] * state[4 * i + 1] + state[4 * i + 3] * state[4 * i + 3];
+			v2sum += state[4 * i + 1] * state[4 * i + 1] + state[4 * i + 3]
+					* state[4 * i + 3];
 		}
+		
 		double kineticEnergyPerParticle = 0.5 * v2sum / N;
-		double rescale = Math.sqrt(initialKineticEnergy / kineticEnergyPerParticle);
+		double rescale = Math.sqrt(initialKineticEnergy
+				/ kineticEnergyPerParticle);
 		for (int i = 0; i < N; ++i) {
 			state[4 * i + 1] *= rescale;
 			state[4 * i + 3] *= rescale;
@@ -250,11 +261,13 @@ public class LJParticles implements Drawable, ODE {
 				freedom += dx * dx + dy * dy;
 			}
 		}
+
 		return freedom;
 	}
 
 	public double getMeanFreedom() {
 		double freedom = 0d;
+
 		for (int i = 0; i < N; ++i) {
 			for (int j = 0; j < N; ++j) {
 				double dx = pbcSeparation(state[4 * i] - state[4 * j], Lx);
@@ -262,6 +275,7 @@ public class LJParticles implements Drawable, ODE {
 				freedom += dx * dx + dy * dy;
 			}
 		}
+
 		return freedom / steps;
 	}
 	
@@ -364,7 +378,8 @@ public class LJParticles implements Drawable, ODE {
 			computeAcceleration();
 		}
 		for (int i = 0; i < N; i++) {
-			rate[4 * i] = state[4 * i + 1]; // rates for positions are velocities
+			rate[4 * i] = state[4 * i + 1]; // rates for positions are
+											// velocities
 			rate[4 * i + 2] = state[4 * i + 3]; // vy
 			rate[4 * i + 1] = ax[i]; // rate for velocity is acceleration
 			rate[4 * i + 3] = ay[i];
@@ -384,6 +399,7 @@ public class LJParticles implements Drawable, ODE {
 			state[4 * i] = pbcPosition(state[4 * i], Lx);
 			state[4 * i + 2] = pbcPosition(state[4 * i + 2], Ly);
 		}
+		
 		totalKineticEnergy *= 0.5;
 		steps++;
 		totalKineticEnergyAccumulator += totalKineticEnergy;
@@ -398,14 +414,17 @@ public class LJParticles implements Drawable, ODE {
 		if (state == null) {
 			return;
 		}
+		
 		int pxRadius = Math.abs(panel.xToPix(radius) - panel.xToPix(0));
 		int pyRadius = Math.abs(panel.yToPix(radius) - panel.yToPix(0));
 		g.setColor(Color.red);
+		
 		for (int i = 0; i < N; i++) {
 			int xpix = panel.xToPix(state[4 * i]) - pxRadius;
 			int ypix = panel.yToPix(state[4 * i + 2]) - pyRadius;
 			g.fillOval(xpix, ypix, 2 * pxRadius, 2 * pyRadius);
 		} // draw central cell boundary
+		
 		g.setColor(Color.black);
 		int xpix = panel.xToPix(0);
 		int ypix = panel.yToPix(Ly);
