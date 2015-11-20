@@ -113,12 +113,9 @@ class Poblacion {
 			md.setAx(mdI.getAx());
 			md.setAy(mdI.getAy());
 			md.setState(mdI.getState());
-			md.setTotalKineticEnergyAccumulator(mdI
-					.getTotalKineticEnergyAccumulator());
-			md.setTotalKineticEnergySquaredAccumulator(mdI
-					.getTotalKineticEnergySquaredAccumulator());
-			md.setTotalPotentialEnergyAccumulator(mdI
-					.getTotalPotentialEnergyAccumulator());
+			md.setTotalKineticEnergyAccumulator(mdI.getTotalKineticEnergyAccumulator());
+			md.setTotalKineticEnergySquaredAccumulator(mdI.getTotalKineticEnergySquaredAccumulator());
+			md.setTotalPotentialEnergyAccumulator(mdI.getTotalPotentialEnergyAccumulator());
 			md.setVirialAccumulator(mdI.getVirialAccumulator());
 			md.getOdeSolver().setStepSize(mdI.getDt());
 
@@ -203,8 +200,8 @@ public class LJParticlesApp extends AbstractSimulation {
 	PlotFrame freedomDataII = new PlotFrame("Tiempo", "Libertad", "Grado de libertad en sistema II");
 	DisplayFrame displayI = new DisplayFrame("x", "y", "Sistema Lennard-Jones I");
 	DisplayFrame displayII = new DisplayFrame("x", "y", "Sistema Lennard-Jones II");
-	PlotFrame freedomTemperatureData = new PlotFrame("Libertad", "Calor promedio",
-			"Relación entre calor promedio vs libertad");
+	PlotFrame freedomTemperatureData = new PlotFrame("Libertad", "Calor disipado",
+			"Relación entre calor disipado vs libertad");
 
 	Poblacion P;
 	private long N;
@@ -330,7 +327,7 @@ public class LJParticlesApp extends AbstractSimulation {
 		}
 
 		for (Individuo i : resultados) {
-			freedomTemperatureData.append(0, i.getFreedom(), i.getValue());
+			freedomTemperatureData.append(0, i.getFreedom(), i.getValueMdI() - i.getValue());
 		}
 		
 		// Crea el sistema mdII a partir de la mutación con menor libertad de mdI.
