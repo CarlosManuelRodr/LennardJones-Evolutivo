@@ -47,6 +47,7 @@ class Individuo {
 	private double value;
 	private double valueMdI;
 	private double freedom;
+	private double deltaF; // Cambio de libertad.
 
 	public double getFreedom() {
 		return freedom;
@@ -54,6 +55,14 @@ class Individuo {
 
 	public void setFreedom(double freedom) {
 		this.freedom = freedom;
+	}
+	
+	public double getDeltaFreedom() {
+		return deltaF;
+	}
+
+	public void setDeltaFreedom(double deltaF) {
+		this.deltaF = deltaF;
 	}
 
 	public double getValueMdI() {
@@ -149,10 +158,12 @@ class Poblacion {
 		
 		double Ej = mdI.getEnergy();
 		double mdIBQ = (-1)*(Ei - Ej);
+		double Fi, Fj;
 		
 		for (Individuo i : this.getIndividuos()) {
 			
 			Ei = i.getLj().getEnergy();
+			Fi = i.getLj().getFreedom();
 			
 			for(int k = 0; k <= steps; k++)
 			{									
@@ -160,11 +171,13 @@ class Poblacion {
 			}
 			
 			Ej = i.getLj().getEnergy();
+			Fj = i.getLj().getFreedom();
 			
 			double BQ = (-1)*(Ei - Ej); 
 				
 			i.setValue(i.getValue() + BQ);
 			i.setFreedom(i.getLj().getMeanFreedom());
+			i.setDeltaFreedom(Fj - Fi);
 			i.setValueMdI(i.getValueMdI() + mdIBQ);
 		}
 	}
@@ -195,38 +208,37 @@ class Poblacion {
  * @version 1.0 revised 03/28/05, 3/29/05
  */
 public class LJParticlesApp extends AbstractSimulation {
-	LJParticles mdI = new LJParticles();
-	LJParticles mdII = new LJParticles();
-	PlotFrame temperatureDataI = new PlotFrame("Tiempo", "Temperatura", "Temperatura promedio en sistema I");
-	PlotFrame temperatureDataII = new PlotFrame("Tiempo", "Temperatura", "Temperatura promedio en sistema II");
-	PlotFrame energyDataI = new PlotFrame("Tiempo", "Energía", "Energía promedio en sistema I");
-	PlotFrame energyDataII = new PlotFrame("Tiempo", "Energía", "Energía promedio en sistema II");
-	PlotFrame freedomDataI = new PlotFrame("Tiempo", "Libertad", "Grado de libertad en sistema I");
-	PlotFrame freedomDataII = new PlotFrame("Tiempo", "Libertad", "Grado de libertad en sistema II");
-	DisplayFrame displayI = new DisplayFrame("x", "y", "Sistema Lennard-Jones I");
-	DisplayFrame displayII = new DisplayFrame("x", "y", "Sistema Lennard-Jones II");
-	PlotFrame freedomTemperatureData = new PlotFrame("Libertad", "Calor disipado",
-			"Relación entre calor disipado vs libertad");
-	HistogramFrame deltaEDist = new HistogramFrame(
-			"Cambio de energía", "Frecuencia",
-			"Distribución de cambios de energía");
-	HistogramFrame deltaFreedDist = new HistogramFrame(
-			"Cambio de libertad", "Frecuencia",
-			"Distribución de cambios de libertad");
+	LJParticles mdI;
+	LJParticles mdII;
+	LJParticles mdIII;
+	PlotFrame temperatureDataI;
+	PlotFrame temperatureDataII;
+	PlotFrame energyDataI;
+	PlotFrame energyDataII;
+	PlotFrame freedomDataI;
+	PlotFrame freedomDataII;
+	PlotFrame meanDeltaFreedomIII;
+	DisplayFrame displayI;
+	DisplayFrame displayII;
+	DisplayFrame displayIII;
+	PlotFrame freedomTemperatureData;
+	HistogramFrame deltaEDist;
+	HistogramFrame deltaFreedDist;
 
-	Poblacion P;
+	Poblacion P, PmdIII;
 	private long N;
 	private long g;
-	private int steps; 
+	private int steps;
+	private boolean simular_sin_mutar, simular_mutado, simular_mutaciones, ver_dist_cambio_energ;
 	
 	/**
 	* Crea una lista con mutaciones de la población. El parámetro que cambia con cada mutación 
 	* es la distribución de velocidades.
 	* @return Lista con todas las mutaciones.
 	*/
-	private java.util.List<Individuo> mutacion(){
+	private java.util.List<Individuo> mutacion(Poblacion pmut){
 		java.util.List<Individuo> mutaciones = new ArrayList<Individuo>();
-		for (Individuo i : P.getIndividuos()) {
+		for (Individuo i : pmut.getIndividuos()) {
 			LJParticles md = new LJParticles();
 
 			md.setDt(i.getLj().getDt());
@@ -273,7 +285,7 @@ public class LJParticlesApp extends AbstractSimulation {
 		
 		do {
 			Poblacion Q = new Poblacion();
-			Q.setPoblacion(mutacion());
+			Q.setPoblacion(mutacion(P));
 			P.nuevoIndividuo(Q);
 			P.evaluar(steps, mdI);
 			
@@ -304,74 +316,131 @@ public class LJParticlesApp extends AbstractSimulation {
 	/**
 	 * Ejecuta el algoritmo evolutivo.
 	 **/
-	public void initialize() {
+	public void initialize() {	
 		// Copia los parámetros de la interfaz gráfica.
 		g = control.getInt("Generaciones");
 		steps = control.getInt("Pasos por generación");
 		N = control.getInt("Tamaño de la población");
-
-		mdI = new LJParticles();
-		mdI.nx = control.getInt("nx"); // Número de partículas por fila.
-		mdI.ny = control.getInt("ny"); // Número de partículas por columna.
-		mdI.initialKineticEnergy = control.getDouble("Energía cinética inicial por partícula");
-		mdI.Lx = control.getDouble("Lx");
-		mdI.Ly = control.getDouble("Ly");
-		mdI.initialConfiguration = control.getString("Configuración inicial");
-		mdI.dt = control.getDouble("dt");
+		simular_sin_mutar = control.getBoolean("Simular sistema sin mutar");
+		simular_mutado = control.getBoolean("Simular sistema mutado");
+		simular_mutaciones = control.getBoolean("Simular mutaciones");
+		ver_dist_cambio_energ = control.getBoolean("Ver distribución de cambio energético");
 		
-		freedomTemperatureData.setLogScale(true, true);
-
-		// Crea sistema LJ mdI y lo evoluciona un número 'step' de pasos.
-		mdI.initialize();
-
-		for (int k = 0; k < steps; k++) {
-			mdI.step();
-		}
-
-		displayI.addDrawable(mdI);
-		displayI.setPreferredMinMax(0, mdI.Lx, 0, mdI.Ly);
-
-		java.util.List<Individuo> resultados = new ArrayList<Individuo>();
-
-		// Evoluciona mdI seleccionando las mutaciones con menor grado de libertad.
-		buscarSelection(mdI);
-		for (Individuo i : P.getIndividuos()) {
-			resultados.add(i);
-		}
-
-		// Crea el sistema mdII a partir de la mutación con menor libertad de mdI.
-		mdII = new LJParticles();
-		mdII = resultados.get(0).getLj();
-		displayII.addDrawable(mdII);
-		displayII.setPreferredMinMax(0, mdII.Lx, 0, mdII.Ly);
-		
-		// El sistema mdIII se usa para calcular los valores de las distribuciones.
-		LJParticles mdIII = new LJParticles();
-		mdIII.nx = control.getInt("nx");
-		mdIII.ny = control.getInt("ny");
-		mdIII.initialKineticEnergy = control.getDouble("Energía cinética inicial por partícula");
-		mdIII.Lx = control.getDouble("Lx");
-		mdIII.Ly = control.getDouble("Ly");
-		mdIII.initialConfiguration = control.getString("Configuración inicial");
-		mdIII.dt = control.getDouble("dt");
-		mdIII.initialize();
-		deltaEDist.setBinWidth(4.0);
-		deltaFreedDist.setBinWidth(4.0);
-		
-		for (int i = 0; i < g; i++)
+		if (simular_sin_mutar || simular_mutado)
 		{
-			double Ei = mdIII.getEnergy();
-			double Fi = mdIII.getFreedom();
-			for (int j = 0; j <= steps; j++)
-			{									
-				mdIII.step();	
-				mdIII.setVelocitiesEvolution();
-			}
-			double Ej = mdIII.getEnergy();
-			double Fj = mdIII.getFreedom();
+				super.setStepsPerDisplay(10);  // Dibuja la configuración cada 10 pasos.
+				mdI = new LJParticles();
+				mdI.nx = control.getInt("nx"); // Número de partículas por fila.
+				mdI.ny = control.getInt("ny"); // Número de partículas por columna.
+				mdI.initialKineticEnergy = control.getDouble("Energía cinética inicial por partícula");
+				mdI.Lx = control.getDouble("Lx");
+				mdI.Ly = control.getDouble("Ly");
+				mdI.initialConfiguration = control.getString("Configuración inicial");
+				mdI.dt = control.getDouble("dt");
+		
+				// Crea sistema LJ mdI y lo evoluciona un número 'step' de pasos.
+				mdI.initialize();
+		
+				for (int k = 0; k < steps; k++) {
+					mdI.step();
+				}
+		
+				if (simular_sin_mutar)
+				{
+					displayI = new DisplayFrame("x", "y", "Sistema Lennard-Jones I");
+					displayI.setSquareAspect(true);
+					temperatureDataI = new PlotFrame("Tiempo", "Temperatura", "Temperatura promedio en sistema I");
+					energyDataI = new PlotFrame("Tiempo", "Energía", "Energía promedio en sistema I");
+					freedomDataI = new PlotFrame("Tiempo", "Libertad", "Grado de libertad en sistema I");
+					
+					displayI.addDrawable(mdI);
+					displayI.setPreferredMinMax(0, mdI.Lx, 0, mdI.Ly);
+				}
+		
+				if (simular_mutado)
+				{
+					displayII = new DisplayFrame("x", "y", "Sistema Lennard-Jones II");
+					displayII.setSquareAspect(true);
+					temperatureDataII = new PlotFrame("Tiempo", "Temperatura", "Temperatura promedio en sistema II");
+					energyDataII = new PlotFrame("Tiempo", "Energía", "Energía promedio en sistema II");
+					freedomDataII = new PlotFrame("Tiempo", "Libertad", "Grado de libertad en sistema II");
+					freedomTemperatureData = new PlotFrame("Libertad", "Calor disipado",
+							"Relación entre calor disipado vs libertad");
+					freedomTemperatureData.setLogScale(true, true);
+					
+					java.util.List<Individuo> resultados = new ArrayList<Individuo>();
 			
-			deltaEDist.append((-1)*(Ei - Ej));
-			deltaFreedDist.append((-1)*(Fi - Fj));
+					// Evoluciona mdI seleccionando las mutaciones con menor grado de libertad.
+					buscarSelection(mdI);
+					for (Individuo i : P.getIndividuos()) {
+						resultados.add(i);
+						
+					// Crea el sistema mdII a partir de la mutación con menor libertad de mdI.
+					mdII = new LJParticles();
+					mdII = resultados.get(0).getLj();
+					displayII.addDrawable(mdII);
+					displayII.setPreferredMinMax(0, mdII.Lx, 0, mdII.Ly);
+				}
+			}
+		}
+		
+		if (simular_mutaciones)
+		{
+			super.setStepsPerDisplay(1);
+			displayIII = new DisplayFrame("x", "y", "Sistema Lennard-Jones III");
+			displayIII.setSquareAspect(true);
+			deltaFreedDist = new HistogramFrame("Cambio de libertad", "Frecuencia",
+					"Distribución de cambios de libertad en el sistema III");
+			meanDeltaFreedomIII = new PlotFrame("Tiempo", "Cambio de libertad promedio",
+					"Cambio de libertad promedio en sistema III");
+			
+			// El sistema mdIII se usa para calcular la distribución de los valores de libertad.
+			mdIII = new LJParticles();
+			mdIII.nx = control.getInt("nx");
+			mdIII.ny = control.getInt("ny");
+			mdIII.initialKineticEnergy = control.getDouble("Energía cinética inicial por partícula");
+			mdIII.Lx = control.getDouble("Lx");
+			mdIII.Ly = control.getDouble("Ly");
+			mdIII.initialConfiguration = control.getString("Configuración inicial");
+			mdIII.dt = control.getDouble("dt");
+			mdIII.initialize();
+			PmdIII = new Poblacion(N, mdIII);
+			PmdIII.evaluar(steps, mdIII);
+			displayIII.addDrawable(mdIII);
+			displayIII.setPreferredMinMax(0, mdIII.Lx, 0, mdIII.Ly);
+			deltaFreedDist.setBinWidth(4.0);
+		}
+		
+		if (ver_dist_cambio_energ)
+		{
+			// El sistema mdIV se usa para calcular los valores de la distribución de cambio
+			// de energía.
+			deltaEDist = new HistogramFrame("Cambio de energía", "Frecuencia",
+					"Distribución de cambios de energía");
+			LJParticles mdIV = new LJParticles();
+			mdIV.nx = control.getInt("nx");
+			mdIV.ny = control.getInt("ny");
+			mdIV.initialKineticEnergy = control.getDouble("Energía cinética inicial por partícula");
+			mdIV.Lx = control.getDouble("Lx");
+			mdIV.Ly = control.getDouble("Ly");
+			mdIV.initialConfiguration = control.getString("Configuración inicial");
+			mdIV.dt = control.getDouble("dt");
+			mdIV.initialize();
+			deltaEDist.setBinWidth(4.0);
+			deltaFreedDist.setBinWidth(4.0);
+			
+			for (int i = 0; i < g; i++)
+			{
+				double Ei = mdIV.getEnergy();
+				for (int j = 0; j <= steps; j++)
+				{									
+					mdIV.step();	
+					mdIV.setVelocitiesEvolution();
+				}
+				double Ej = mdIV.getEnergy();
+				
+				deltaEDist.append((-1)*(Ei - Ej));
+			}
 		}
 	}
 
@@ -379,47 +448,93 @@ public class LJParticlesApp extends AbstractSimulation {
 	 * Efectúa un paso de la simulación y actualiza las gráficas.
 	 */
 	public void doStep() {
-		// Evoluciona mdI y actualiza gráficas.
-		mdI.step();
-		mdI.setVelocitiesEvolution();
-		energyDataI.append(0, mdI.t, mdI.getMeanEnergy());
-		temperatureDataI.append(0, mdI.t, mdI.getMeanTemperature());
-		freedomDataI.append(0, mdI.t, mdI.getFreedom());
+		if (simular_sin_mutar)
+		{
+			// Evoluciona mdI y actualiza gráficas.
+			mdI.step();
+			mdI.setVelocitiesEvolution();
+			energyDataI.append(0, mdI.t, mdI.getMeanEnergy());
+			temperatureDataI.append(0, mdI.t, mdI.getMeanTemperature());
+			freedomDataI.append(0, mdI.t, mdI.getFreedom());
+		}
 		
-		// Evoluciona mdII y actualiza gráficas.
-		mdII.step();
-		mdII.setVelocitiesEvolution();
-		energyDataII.append(0, mdII.t, mdII.getMeanEnergy());
-		temperatureDataII.append(0, mdII.t, mdII.getMeanTemperature());
-		freedomDataII.append(0, mdII.t, mdII.getFreedom());
+		if (simular_mutado)
+		{
+			// Evoluciona mdII y actualiza gráficas.
+			mdII.step();
+			mdII.setVelocitiesEvolution();
+			energyDataII.append(0, mdII.t, mdII.getMeanEnergy());
+			temperatureDataII.append(0, mdII.t, mdII.getMeanTemperature());
+			freedomDataII.append(0, mdII.t, mdII.getFreedom());
+		}
+		
+		if (simular_mutaciones)
+		{
+			// Evoluciona mdIII
+			Poblacion Q = new Poblacion();
+			Q.setPoblacion(mutacion(PmdIII));
+			PmdIII.nuevoIndividuo(Q);
+			PmdIII.evaluar(steps, mdIII);
+			java.util.List<Individuo> resultados = new ArrayList<Individuo>();
+			java.util.List<Individuo> individuos = new ArrayList<Individuo>(PmdIII.getIndividuos());
+			
+			ValorComparator vc = new ValorComparator();
+			Collections.sort(individuos, vc);
+			long j = 0;
+	
+			deltaFreedDist.setBinWidth(15.0);
+			
+			double meanFreedom = 0;
+			for (Individuo i : individuos) {
+				if (j < individuos.size() / 2) {
+					resultados.add(i);
+					deltaFreedDist.append(i.getDeltaFreedom());
+					meanFreedom += i.getDeltaFreedom();
+					j++;
+				} else
+					break;
+			}
+			meanFreedom /= individuos.size();
+			meanDeltaFreedomIII.append(0, mdIII.t, meanFreedom);
+			
+			PmdIII.setPoblacion(resultados);
+			displayIII.clearDrawables();
+			displayIII.addDrawable(PmdIII.getIndividuos().get(0).getLj());
+		}
 	}
 
 	/**
 	 * Escribe la información del sistema LJ al terminar la simulación.
 	 */
 	public void stop() {
-		control.println("Density = " + decimalFormat.format(mdII.rho));
-		control.println("Number of time steps = " + mdII.steps);
-		control.println("Time step dt = " + decimalFormat.format(mdII.dt));
-		control.println("<T>= " + decimalFormat.format(mdII.getMeanTemperature()));
-		control.println("<E> = " + decimalFormat.format(mdII.getMeanEnergy()));
-		control.println("Heat capacity = " + decimalFormat.format(mdII.getHeatCapacity()));
-		control.println("<PA/NkT> = " + decimalFormat.format(mdII.getMeanPressure()));
+		if (simular_mutado)
+		{
+			control.println("Density = " + decimalFormat.format(mdII.rho));
+			control.println("Number of time steps = " + mdII.steps);
+			control.println("Time step dt = " + decimalFormat.format(mdII.dt));
+			control.println("<T>= " + decimalFormat.format(mdII.getMeanTemperature()));
+			control.println("<E> = " + decimalFormat.format(mdII.getMeanEnergy()));
+			control.println("Heat capacity = " + decimalFormat.format(mdII.getHeatCapacity()));
+			control.println("<PA/NkT> = " + decimalFormat.format(mdII.getMeanPressure()));
+		}
 	}
 
 	/**
 	 * Copia los parámetros del control antes de comenzar la ejecución.
 	 */
 	public void startRunning() {
-		mdII.dt = control.getDouble("dt");
-		double Lx = control.getDouble("Lx");
-		double Ly = control.getDouble("Ly");
-		if ((Lx != mdII.Lx) || (Ly != mdII.Ly)) {
-			mdII.Lx = Lx;
-			mdII.Ly = Ly;
-			mdII.computeAcceleration();
-			displayII.setPreferredMinMax(0, Lx, 0, Ly);
-			resetData();
+		if (simular_mutado)
+		{
+			mdII.dt = control.getDouble("dt");
+			double Lx = control.getDouble("Lx");
+			double Ly = control.getDouble("Ly");
+			if ((Lx != mdII.Lx) || (Ly != mdII.Ly)) {
+				mdII.Lx = Lx;
+				mdII.Ly = Ly;
+				mdII.computeAcceleration();
+				displayII.setPreferredMinMax(0, Lx, 0, Ly);
+				resetData();
+			}
 		}
 	}
 
@@ -437,20 +552,25 @@ public class LJParticlesApp extends AbstractSimulation {
 		control.setValue("Energía cinética inicial por partícula", 1.0);
 		control.setAdjustableValue("dt", 0.01);
 		control.setValue("Configuración inicial", "rectangular");
+		control.setValue("Simular sistema sin mutar", true);
+		control.setValue("Simular sistema mutado", true);
+		control.setValue("Simular mutaciones", false);
+		control.setValue("Ver distribución de cambio energético", false);
 		enableStepsPerDisplay(true);
-		super.setStepsPerDisplay(10);     // Dibuja la configuración cada 10 pasos.
-		displayII.setSquareAspect(true);
-		displayI.setSquareAspect(true);
 	}
 
 	/**
 	 * Resetea el modelo de LJ y las gráficas.
 	 */
 	public void resetData() {
-		mdII.resetAverages();
-		mdI.resetAverages();
+		if (simular_mutado)
+			mdII.resetAverages();
+		
+		if (simular_sin_mutar)
+			mdI.resetAverages();
+		
 		GUIUtils.clearDrawingFrameData(false); // clears old data from the plot
-												// frames
+											   // frames
 	}
 
 	/**
